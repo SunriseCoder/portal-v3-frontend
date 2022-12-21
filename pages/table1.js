@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { eventData } from "../utils/eventData";
 import { Box, Button, Typography } from "@mui/material";
 
 //----------table components-------
@@ -19,12 +18,20 @@ import FormControl from "@mui/material/FormControl";
 import FormLabel from "@mui/material/FormLabel";
 import RecordingOperation from "../components/RecordingOperation";
 
+//----------fetch apis-------------
+import axios from 'axios'
+import { useQuery } from "@tanstack/react-query";
+
+const fetchEventData = () => {
+  // TODO: Move API URL to .env file
+  //console.log('API url from .env: ', process.env.BACKEND_API_URL);
+  //return axios.get(process.env.BACKEND_API_URL + "/events/complex");
+  return axios.get("http://localhost:8000/api/events/complex");
+}
+
 export default function Table1() {
-  const [events, setEvents] = useState(eventData?.events);
-  const [operations, setOperations] = useState(eventData?.eventOperationTypes);
-  const [operationStatus, setOperationStatus] = useState(
-    eventData?.eventOperationStatuses
-  );
+  const [data, setData] = useState(null);
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [eventDetailsForm, setEventDetailsForm] = useState({
     name: "",
@@ -37,6 +44,13 @@ export default function Table1() {
     Collect: "",
     Create: "",
   });
+
+  const { data:apiData } = useQuery(['fetchPlanData'], fetchEventData, {
+    onSuccess: (data) => {
+      console.log('api data: ', data?.data);
+      setData(data?.data);
+    },
+  })
 
   const handleChange = (event) => {
     setValue(event.target.value);
@@ -57,7 +71,7 @@ export default function Table1() {
     });
     setDrawerOpen(true);
   };
-  console.log(eventDetailsForm);
+
   return (
     <Box>
       <Typography
@@ -70,7 +84,9 @@ export default function Table1() {
       >
         Portal V3
       </Typography>
+
       <Box sx={{ display: "flex", position: "relative" }}>
+
         {/* ---------------left side---------------------- */}
         <TableContainer
           component={Paper}
@@ -89,7 +105,8 @@ export default function Table1() {
             </TableHead>
 
             <TableBody>
-              {events
+              
+              {data?.events
                 // .sort((a, b) => (a.startDate > b.startDate ? 1 : -1))
                 .map((eve, eveIndex) => {
                   return (
@@ -123,7 +140,7 @@ export default function Table1() {
               background: "#f1faee",
             }}
             minWidth={"40%"}
-            height={500}
+            height={'100vh'}
           >
             {/* -----------close button------------ */}
             <Box
@@ -179,7 +196,7 @@ export default function Table1() {
                 RECORDINGS
               </Typography>
 
-              {operations.map((op, i) => {
+              {operations?.map((op, i) => {
                 return (
                   <RecordingOperation
                     key={"op" + i}

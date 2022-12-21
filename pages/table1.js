@@ -22,6 +22,8 @@ import RecordingOperation from "../components/RecordingOperation";
 import axios from 'axios'
 import { useQuery } from "@tanstack/react-query";
 
+import Map from "../utils/map";
+
 const fetchEventData = () => {
   // TODO: Move API URL to .env file
   //console.log('API url from .env: ', process.env.BACKEND_API_URL);
@@ -31,6 +33,50 @@ const fetchEventData = () => {
 
 export default function Table1() {
   const [data, setData] = useState(null);
+  
+  const updateMaps = (response) => {
+    var data = response.data;
+    var maps = {};
+
+    // Event Operation Type Groups
+    maps.eventOperationTypeGroups = new Map(data.eventOperationTypeGroups);
+
+    // Event Operation Types
+    maps.eventOperationTypes = new Map(data.eventOperationTypes);
+    maps.eventOperationTypeGroups.addChildren(maps.eventOperationTypes.getAll(), 'groupId');
+
+    // Events
+    maps.events = new Map(data.events);
+    // TODO: .sort((a, b) => (a.startDate > b.startDate ? 1 : -1))
+
+    // Activity Operation Type Groups
+    maps.activityOperationTypeGroups = new Map(data.activityOperationTypeGroups);
+
+    // Activity Operation Types
+    maps.activityOperationTypes = new Map(data.activityOperationTypes);
+    maps.activityOperationTypeGroups.addChildren(maps.activityOperationTypes.getAll(), 'groupId');
+
+    // Activity Operation Languages
+    maps.activityOperationLanguages = new Map(data.activityOperationLanguages);
+
+    // Activity Column Size
+    maps.activityColumnSize = 0;
+    maps.activityOperationTypeGroups.getAll().forEach(typeGroup => {
+      maps.activityColumnSize += typeGroup.isLanguageDependent
+          ? maps.activityOperationLanguages.size() * typeGroup.childrenSize
+          : typeGroup.childrenSize;
+    });
+
+    // Language-dependent Activity Operation Types Size
+    maps.languageDependentActivityOperationTypeSize = 0;
+    maps.activityOperationTypeGroups.getAll().forEach(typeGroup => {
+      if (typeGroup.isLanguageDependent) {
+        maps.languageDependentActivityOperationTypeSize += typeGroup.childrenSize;
+      }
+    });
+
+    setData(maps);
+  }
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [eventDetailsForm, setEventDetailsForm] = useState({
@@ -46,9 +92,8 @@ export default function Table1() {
   });
 
   const { data:apiData } = useQuery(['fetchPlanData'], fetchEventData, {
-    onSuccess: (data) => {
-      console.log('api data: ', data?.data);
-      setData(data?.data);
+    onSuccess: (response) => {
+      updateMaps(response);
     },
   })
 
@@ -91,27 +136,82 @@ export default function Table1() {
         <TableContainer
           component={Paper}
           minHeight={"100vh"}
-          sx={{ overflow: "auto" }}
+          sx={{ overflow: "auto", maxHeight: 500 }}
         >
-          <Table aria-label="simple table">
+          {data && <Table aria-label="sticky table" dense size="small" stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell>ID</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Type</TableCell>
-                <TableCell>Starts on</TableCell>
-                <TableCell>Ends on</TableCell>
+                <TableCell colSpan={5 + data.eventOperationTypes.size()}>Events</TableCell>
+                <TableCell colSpan={data.activityColumnSize}>Activities</TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell rowSpan={3}>ID</TableCell>
+                <TableCell rowSpan={3}>Name</TableCell>
+                <TableCell rowSpan={3}>Type</TableCell>
+                <TableCell rowSpan={3}>Start</TableCell>
+                <TableCell rowSpan={3}>End</TableCell>
+                
+                { // Event Operation Type Groups
+                data.eventOperationTypeGroups.getAll().map((typeGroup, typeGroupIndex) => {
+                  return (
+                    <TableCell colSpan={typeGroup.childrenSize} rowSpan={2}>{typeGroup.name}</TableCell>
+                  );
+                })}
+
+                { // Activity Operation Type Groups
+                data.activityOperationTypeGroups.getAll().map((typeGroup, typeGroupIndex) => {
+                  return (
+                    <TableCell
+                      colSpan={typeGroup.isLanguageDependent
+                        ? typeGroup.childrenSize * data.activityOperationLanguages.size()
+                        : typeGroup.childrenSize
+                      }
+                      rowSpan={typeGroup.isLanguageDependent ? 1 : 2}
+                      >{typeGroup.name}</TableCell>
+                  );
+                })}
+              </TableRow>
+              <TableRow>
+                { // Activity Operation Languages
+                data.activityOperationLanguages.getAll().map((language, languageIndex) => {
+                  return (
+                    <TableCell colSpan={data.languageDependentActivityOperationTypeSize}>
+                      {language.name}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+              <TableRow>
+                { // Event Operation Types
+                data.eventOperationTypes.getAll().map((type, typeIndex) => {
+                  return (
+                    <TableCell>{type.name}</TableCell>
+                  );
+                })}
+
+                { // Activity Operation Types
+                  data.activityOperationTypeGroups.getAll().map((typeGroup, typeGroupIndex) => {
+                    if (typeGroup.isLanguageDependent) {
+                      return data.activityOperationLanguages.getAll().map((language, languageIndex) => {
+                        return typeGroup.children.map((type, typeIndex) => {
+                          return (<TableCell>{type.name}</TableCell>);
+                        });
+                      });
+                    } else {
+                      return typeGroup.children.map((type, typeIndex) => {
+                        return (<TableCell>{type.name}</TableCell>);
+                      });
+                    }
+                  })
+                }
               </TableRow>
             </TableHead>
 
             <TableBody>
-              
-              {data?.events
-                // .sort((a, b) => (a.startDate > b.startDate ? 1 : -1))
-                .map((eve, eveIndex) => {
+              {data.events.getAll().map((eve, eveIndex) => {
                   return (
                     <TableRow
-                      key={"event" + eveIndex}
+                      key={"event-" + eve.id}
                       sx={{ "&:last-child td, &:last-child th": { border: 0 } }}
                       onClick={() => handleEventDetails(eve)}
                     >
@@ -122,11 +222,16 @@ export default function Table1() {
                       </TableCell>
                       <TableCell>{eve.startDate} </TableCell>
                       <TableCell>{eve.endDate}</TableCell>
+                      <TableCell>1</TableCell>
+                      <TableCell>2</TableCell>
+                      <TableCell>3</TableCell>
+                      <TableCell>4</TableCell>
+                      <TableCell>5</TableCell>
                     </TableRow>
                   );
                 })}
             </TableBody>
-          </Table>
+          </Table>}
         </TableContainer>
 
         {/* -----------------right side------------------ */}

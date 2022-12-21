@@ -135,10 +135,9 @@ export default function Table1() {
         {/* ---------------left side---------------------- */}
         <TableContainer
           component={Paper}
-          minHeight={"100vh"}
           sx={{ overflow: "auto", maxHeight: 500 }}
         >
-          {data && <Table aria-label="sticky table" dense size="small" stickyHeader>
+          {data && <Table aria-label="sticky table" dense="true" size="small" stickyHeader>
             <TableHead>
               <TableRow>
                 <TableCell colSpan={5 + data.eventOperationTypes.size()}>Events</TableCell>

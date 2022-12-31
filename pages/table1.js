@@ -25,10 +25,7 @@ import { useQuery } from "@tanstack/react-query";
 import Map from "../utils/map";
 
 const fetchEventData = () => {
-  // TODO: Move API URL to .env file
-  //console.log('API url from .env: ', process.env.BACKEND_API_URL);
-  //return axios.get(process.env.BACKEND_API_URL + "/events/complex");
-  return axios.get("http://localhost:8000/api/events/complex");
+  return axios.get(process.env.NEXT_PUBLIC_BACKEND_API_URL + "/events/complex");
 }
 
 export default function Table1() {
